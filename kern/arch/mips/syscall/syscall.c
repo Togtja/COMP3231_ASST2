@@ -35,6 +35,9 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
+#include <file.h>
+#include <copyinout.h>
+#include <endian.h>
 
 
 /*
@@ -80,7 +83,7 @@ syscall(struct trapframe *tf)
 {
 	int callno;
 	int32_t retval;
-	int err;
+	int err = 0;
 
 	KASSERT(curthread != NULL);
 	KASSERT(curthread->t_curspl == 0);
@@ -108,9 +111,35 @@ syscall(struct trapframe *tf)
 		err = sys___time((userptr_t)tf->tf_a0,
 				 (userptr_t)tf->tf_a1);
 		break;
-
-	    /* Add stuff here */
-
+		/* OUR ADDED STUFF */
+		///TODO Look into error stuff todo a table or refrence error to the functions?
+		case SYS_open:
+			retval = sys_open(/*Filename*/(const char*)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2);
+			break;
+		case SYS_read:
+			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(void*)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2);
+			break;
+		case SYS_write: 
+			retval = sys_write(/*filehandle*/(int)tf->tf_a0,/*buffer*/(const void*)tf->tf_a1,/*bytesize*/(size_t)tf->tf_a2);
+			break;
+		case SYS_lseek: 
+			//Special case
+			;
+			uint64_t pos;
+			int whence = 0;
+			//Take arg a2 and a3 into pos
+			join32to64(tf->tf_a2,tf->tf_a3, &pos); //TODO: See if return a val
+			//copy in from stack to the last arg
+			copyin(/*userpointer to stack*/(userptr_t)tf->tf_sp + 16,/*usrptr into*/ &whence, /*size of into*/sizeof(int)); //TODO: See if return a val
+			//ATM this does not work, as sys_lseek returns 64bit, so we need to return to a 64bit then split it before we exit		
+			retval = sys_lseek(/*filehandle*/(int)tf->tf_a0,/*position 64bit*/pos, /*seek_(set/cur/end)*/whence);
+			break;
+		case SYS_close:
+			retval = sys_close(/*filehandle*/(int)tf->tf_a0);
+			break;
+		case SYS_dup2:
+			retval = sys_dub2(/*old filehandle*/(int)tf->tf_a0, /*new filehandle*/(int)tf->tf_a1);
+			break;
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
