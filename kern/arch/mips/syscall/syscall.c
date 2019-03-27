@@ -36,8 +36,8 @@
 #include <current.h>
 #include <syscall.h>
 #include <file.h>
-#include <copyinout.h>
-#include <endian.h>
+#include <copyinout.h> //To call copyin (that copies from the stack)
+#include <endian.h> //To call join32to64 and split64to32
 
 
 /*
