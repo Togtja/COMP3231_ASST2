@@ -112,37 +112,37 @@ syscall(struct trapframe *tf)
 				 (userptr_t)tf->tf_a1);
 		break;
 		/* OUR ADDED STUFF */
-		///TODO Look into error stuffa table or refrence error to the functions?
+		///TODO Look into error stuff, a table or refrence error to the functions?
 		case SYS_open:
-			retval = sys_open(/*Pathname*/(userptr_t)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2);
+			retval = sys_open(/*Pathname*/(userptr_t)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2, &err);
 			break;
 		case SYS_read:
-			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(userptr_t)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2);
+			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(userptr_t)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2, &err);
 			break;
 		case SYS_write: 
-			retval = sys_write(/*filehandle*/(int)tf->tf_a0,/*buffer*/userptr_t)tf->tf_a1,/*bytesize*/(size_t)tf->tf_a2);
+			retval = sys_write(/*filehandle*/(int)tf->tf_a0,/*buffer*/(userptr_t)tf->tf_a1,/*bytesize*/(size_t)tf->tf_a2, &err);
 			break;
 		//Special case
 		case SYS_lseek: 
 			;//Empty statment (must keep)
-			uint64_t pos;
+			uint64_t offset;
 			int whence = 0;
 			//Take arg a2 and a3 into pos
-			join32to64((uint32_t)tf->tf_a2,(uint32_t)tf->tf_a3, &pos);
+			join32to64((uint32_t)tf->tf_a2,(uint32_t)tf->tf_a3, &offset);
 			//copy in from stack to the last arg
 			err = copyin(/*userpointer to stack*/(userptr_t)tf->tf_sp + 16,/*usrptr into*/ &whence, /*size of into*/sizeof(int)); //return 0 if sucess
 			if (err) {
 				break;
 			}
-			//ATM this does not work, as sys_lseek returns 64bit, so we need to return to a 64bit then split it before we exit	
-			//Technacally supposed to return a off_t, but since it will be cast to a uint64, don't know if it matters
-			split64to32(sys_lseek(/*filehandle*/(int)tf->tf_a0,/*position 64bit*/pos, /*seek_(set/cur/end)*/whence),&tf->tf_v0, &tf->tf_v1);
+			//switched to off_t after seeing assigment 2 tips, again
+			split64to32(sys_lseek(/*filehandle*/(int)tf->tf_a0,/*position 64bit*/offset, /*seek_(set/cur/end)*/whence, &err),
+				&tf->tf_v0, &tf->tf_v1);
 			break;
 		case SYS_close:
-			retval = sys_close(/*filehandle*/(int)tf->tf_a0);
+			retval = sys_close(/*filehandle*/(int)tf->tf_a0, &err);
 			break;
 		case SYS_dup2:
-			retval = sys_dub2(/*old filehandle*/(int)tf->tf_a0, /*new filehandle*/(int)tf->tf_a1);
+			retval = sys_dub2(/*old filehandle*/(int)tf->tf_a0, /*new filehandle*/(int)tf->tf_a1, &err);
 			break;
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
