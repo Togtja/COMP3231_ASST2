@@ -28,13 +28,13 @@ int sys_open(userptr_t filename, int flag, mode_t mode) {
 	(void)mode;
 	return 0;
 }
-int sys_read(int fd, void* buffer, size_t bufsize) {
+int sys_read(int fd, userptr_t buffer, size_t bufsize) {
 	(void)fd;
 	(void)buffer;
 	(void)bufsize;
 	return 0;
 }
-int sys_write(int fd, const void* buffer, size_t bytesize) {
+int sys_write(int fd, userptr_t buffer, size_t bytesize) {
 	(void)fd;
 	(void)buffer;
 	(void)bytesize;

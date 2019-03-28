@@ -117,10 +117,10 @@ syscall(struct trapframe *tf)
 			retval = sys_open(/*Pathname*/(userptr_t)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2);
 			break;
 		case SYS_read:
-			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(void*)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2);
+			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(userptr_t)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2);
 			break;
 		case SYS_write: 
-			retval = sys_write(/*filehandle*/(int)tf->tf_a0,/*buffer*/(const void*)tf->tf_a1,/*bytesize*/(size_t)tf->tf_a2);
+			retval = sys_write(/*filehandle*/(int)tf->tf_a0,/*buffer*/userptr_t)tf->tf_a1,/*bytesize*/(size_t)tf->tf_a2);
 			break;
 		//Special case
 		case SYS_lseek: 

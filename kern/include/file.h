@@ -17,9 +17,9 @@
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/open.html
 int sys_open(userptr_t filename, int flag, mode_t mode);
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/read.html
-int sys_read(int fd, void* buffer, size_t bufsize);
+int sys_read(int fd, userptr_t buffer, size_t bufsize);
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/write.html
-int sys_write(int fd,const void* buffer, size_t bytesize);
+int sys_write(int fd,const userptr_t buffer, size_t bytesize);
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/lseek.html
 uint64_t sys_lseek(int fd, uint64_t pos, int whence);
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/close.html
