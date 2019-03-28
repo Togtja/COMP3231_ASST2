@@ -23,6 +23,19 @@
 /*
  * Add your file-related functions here ...
  */
+void free_file(struct file* f) {
+	if (f == NULL) {
+		return;
+	}
+//	if (f->vnode != NULL) {
+//		vfs_close(f->vnode);
+//	}
+	if (f->lock != NULL) {
+		lock_destroy(f->lock);
+	}
+	kfree(f);
+}
+
 int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	char* saneFileName = kmalloc(sizeof(char)*__PATH_MAX);
 	if (saneFileName == NULL) {
@@ -60,7 +73,9 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	struct vnode* vn;
 	*err = vfs_open(saneFileName, flag, mode, &vn);
 	if (*err) {
+		vfs_close(vn);
 		kfree(saneFileName);
+		//free_file(curproc->file_desc[fd]);
 		return -1;//Returns -1 if failed
 	}
 	//curproc->file_desc[fd]->fd = fd;
@@ -71,8 +86,9 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	//Make sure we have enough memory for the lock
 	if (curproc->file_desc[fd]->lock == NULL) {
 		*err = ENOMEM;
+		vfs_close(vn);
 		kfree(saneFileName);
-		kfree(curproc->file_desc[fd]);//If we can't create the lock we just free the whole file
+		free_file(curproc->file_desc[fd]);//If we can't create the lock we just free the whole file
 		return -1;
 	}
 	kfree(saneFileName);
@@ -153,10 +169,11 @@ int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
 		return -1;
 	}
 
-	int writen = bytesize - wuio.uio_resid;
-	curproc->file_desc[fd]->offset += writen;
+	
+	curproc->file_desc[fd]->offset = wuio.uio_offset;
 	lock_release(curproc->file_desc[fd]->lock);
 	kfree(saneBuffer);
+	int writen = bytesize - wuio.uio_resid;
 	return writen;
 }
 off_t sys_lseek(int fd, uint64_t pos, int whence, int * err) {

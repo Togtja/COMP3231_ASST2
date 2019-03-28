@@ -57,24 +57,113 @@
 int
 runprogram(char *progname)
 {
+	int result;
+	//Initilize the fd stuff
+	struct vnode* fdv;
+	char * con = kstrdup("con:");
+	//STDIN
+	curproc->file_desc[0] = kmalloc(sizeof(struct file));
+	if (curproc->file_desc[0] == NULL) {
+		kfree(con);
+		return ENOMEM;
+	}
+	result = vfs_open(con, O_RDONLY, 0, &fdv);
+	if (result) {
+		free_file(curproc->file_desc[0]);
+		vfs_close(fdv);
+		kfree(con);
+		return result;
+	}
+	curproc->file_desc[0]->vnode = fdv;
+	curproc->file_desc[0]->flag = O_RDONLY;
+	curproc->file_desc[0]->lock = lock_create("stdin");
+	if (curproc->file_desc[0]->lock == NULL) {
+		free_file(curproc->file_desc[0]);
+		vfs_close(fdv);
+		kfree(con);
+		return ENOMEM;
+	}
+	curproc->file_desc[0]->offset = 0;
+
+	//STDOUT
+	curproc->file_desc[1] = kmalloc(sizeof(struct file));
+	if (curproc->file_desc[1] == NULL) {
+		free_file(curproc->file_desc[0]);
+		vfs_close(fdv);
+		kfree(con);
+		return ENOMEM;
+	}
+	con = kstrdup("con:");
+	result = vfs_open(con, O_WRONLY, 0, &fdv);
+	if (result) {
+		free_file(curproc->file_desc[0]);
+		kfree(curproc->file_desc[1]);
+		vfs_close(fdv);
+		kfree(con);
+		kprintf("TEST1");
+		return result;
+	}
+	curproc->file_desc[1]->vnode = fdv;
+	curproc->file_desc[1]->flag = O_WRONLY;
+	curproc->file_desc[1]->lock = lock_create("stdout");
+	if (curproc->file_desc[1]->lock == NULL) {
+		free_file(curproc->file_desc[0]);
+		free_file(curproc->file_desc[1]);
+		vfs_close(fdv);
+		kfree(con);
+		return ENOMEM;
+	}
+	curproc->file_desc[1]->offset = 0;
+	//STDERR
+	curproc->file_desc[2] = kmalloc(sizeof(struct file));
+	if (curproc->file_desc[2] == NULL) {
+		free_file(curproc->file_desc[0]);
+		free_file(curproc->file_desc[1]);
+		vfs_close(fdv);
+		kfree(con);
+		return ENOMEM;
+	}
+	con = kstrdup("con:");
+	result = vfs_open(con, O_WRONLY, 0, &fdv);
+	if (result) {
+		free_file(curproc->file_desc[0]);
+		free_file(curproc->file_desc[1]);
+		free_file(curproc->file_desc[2]);
+		vfs_close(fdv);
+		kfree(con);
+		kprintf("TEST2");
+		return result;
+	}
+	curproc->file_desc[2]->vnode = fdv;
+	curproc->file_desc[2]->flag = O_WRONLY;
+	curproc->file_desc[2]->lock = lock_create("stderr");
+	if (curproc->file_desc[2]->lock == NULL) {
+		free_file(curproc->file_desc[0]);
+		free_file(curproc->file_desc[1]);
+		free_file(curproc->file_desc[2]);
+		vfs_close(fdv);
+		kfree(con);
+		return ENOMEM;
+	}
+	curproc->file_desc[2]->offset = 0;
+	kfree(con);
+
 	struct addrspace *as;
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
-	int result;
+	
 
 	/* Open the file. */
 	result = vfs_open(progname, O_RDONLY, 0, &v);
 	if (result) {
 		return result;
 	}
+	
 
 	/* We should be a new process. */
 	KASSERT(proc_getas() == NULL);
 
-	//Initilize the fd stuff
-	curproc->file_desc[0] = kmalloc(sizeof(struct file));
-	curproc->file_desc[1] = kmalloc(sizeof(struct file));
-	curproc->file_desc[2] = kmalloc(sizeof(struct file));
+
 
 	/* Create a new address space. */
 	as = as_create();
@@ -104,6 +193,7 @@ runprogram(char *progname)
 		/* p_addrspace will go away when curproc is destroyed */
 		return result;
 	}
+	
 
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
