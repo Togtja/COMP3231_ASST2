@@ -33,6 +33,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	//This sanitize the user pointer to kernel space
 	*err = copyinstr(filename, saneFileName, __PATH_MAX, &len);
 	if (err) {
+		kfree(saneFileName);
 		return -1;//Returns -1 if failed
 	}
 
@@ -47,16 +48,19 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	//If the first "avalable" is outside the amout of possible open files
 	if (fd == __OPEN_MAX) {
 		*err = ENFILE;
+		kfree(saneFileName);
 		return -1;
 	}
 	curproc->file_desc[fd] = kmalloc(sizeof(struct file));
 	if (curproc->file_desc[fd] == NULL){
 		*err = ENOMEM;
+		kfree(saneFileName);
 		return -1;
 	}
 	struct vnode* vn;
 	*err = vfs_open(saneFileName, flag, mode, &vn);
 	if (err) {
+		kfree(saneFileName);
 		return -1;//Returns -1 if failed
 	}
 	//curproc->file_desc[fd]->fd = fd;
@@ -64,8 +68,11 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	curproc->file_desc[fd]->offset = 0;
 	curproc->file_desc[fd]->lock = lock_create(saneFileName);
 	curproc->file_desc[fd]->flag = flag;
+	//Make sure we have enough memory for the lock
 	if (curproc->file_desc[fd]->lock == NULL) {
 		*err = ENOMEM;
+		kfree(saneFileName);
+		kfree(curproc->file_desc[fd]);//If we can't create the lock we just free the whole file
 		return -1;
 	}
 	kfree(saneFileName);
@@ -84,14 +91,37 @@ int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
 		return -1;
 	}
 	if (curproc->file_desc[fd]->flag == O_RDONLY) {
-		*err = EINVAL;
+		*err = EROFS;
 		return -1;
 	}
-	(void)fd;
-	(void)buffer;
-	(void)bytesize;
-	(void)err;
-	return 0;
+	void* saneBuffer = kmalloc(sizeof(void *) * bytesize);
+	if (saneBuffer == NULL) {
+		*err = ENOMEM;
+		return -1;
+	}
+	*err = copyin(buffer, saneBuffer, bytesize);
+	if (err) {
+		return -1;
+	}
+	struct uio wuio;
+	struct iovec wiovec;
+	
+	//Start writing to the file
+	//Remember to release lock if error
+	lock_acquire(curproc->file_desc[fd]->lock);
+	uio_kinit(&wiovec, &wuio, saneBuffer, bytesize, curproc->file_desc[fd]->offset, UIO_WRITE);
+	*err = VOP_WRITE(curproc->file_desc[fd]->vnode, &wuio);
+	if (err) {
+		lock_release(curproc->file_desc[fd]->lock);
+		kfree(saneBuffer);
+		return -1;
+	}
+
+	int writen = bytesize - wuio.uio_resid;
+	curproc->file_desc[fd]->offset += writen;
+	lock_release(curproc->file_desc[fd]->lock);
+	kfree(saneBuffer);
+	return writen;
 }
 off_t sys_lseek(int fd, uint64_t pos, int whence, int * err) {
 	(void)fd;
@@ -101,6 +131,7 @@ off_t sys_lseek(int fd, uint64_t pos, int whence, int * err) {
 	return 0;
 }
 int sys_close(int fd, int * err) {
+	//CLOSE GOT TO FREE THE FILE AFTER IT ISDONE WITH FILE
 	(void)fd;
 	(void)err;
 	return 0;
