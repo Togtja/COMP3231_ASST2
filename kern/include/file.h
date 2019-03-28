@@ -19,6 +19,7 @@ struct file {
 	struct vnode* vnode;
 	off_t offset;
 	struct lock* lock;
+	int flag;
 };
 
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/open.html

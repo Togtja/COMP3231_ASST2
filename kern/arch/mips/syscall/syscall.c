@@ -112,7 +112,6 @@ syscall(struct trapframe *tf)
 				 (userptr_t)tf->tf_a1);
 		break;
 		/* OUR ADDED STUFF */
-		///TODO Look into error stuff, a table or refrence error to the functions?
 		case SYS_open:
 			retval = sys_open(/*Pathname*/(userptr_t)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2, &err);
 			kprintf("We did a open %d\n", callno);
@@ -120,9 +119,11 @@ syscall(struct trapframe *tf)
 
 		case SYS_read:
 			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(userptr_t)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2, &err);
+			kprintf("We did a read %d\n", callno);
 			break;
 		case SYS_write: 
 			retval = sys_write(/*filehandle*/(int)tf->tf_a0,/*buffer*/(userptr_t)tf->tf_a1,/*bytesize*/(size_t)tf->tf_a2, &err);
+			kprintf("We did a write %d\n", callno);
 			break;
 		//Special case
 		case SYS_lseek: 
@@ -139,12 +140,15 @@ syscall(struct trapframe *tf)
 			//switched to off_t after seeing assigment 2 tips, again
 			split64to32(sys_lseek(/*filehandle*/(int)tf->tf_a0,/*position 64bit*/offset, /*seek_(set/cur/end)*/whence, &err),
 				&tf->tf_v0, &tf->tf_v1);
+			kprintf("We did a lseek %d\n", callno);
 			break;
 		case SYS_close:
 			retval = sys_close(/*filehandle*/(int)tf->tf_a0, &err);
+			kprintf("We did a close %d\n", callno);
 			break;
 		case SYS_dup2:
 			retval = sys_dub2(/*old filehandle*/(int)tf->tf_a0, /*new filehandle*/(int)tf->tf_a1, &err);
+			kprintf("We did a dub2 %d\n", callno);
 			break;
 
 	    default:

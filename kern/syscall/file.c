@@ -63,6 +63,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	curproc->file_desc[fd]->vnode = vn;
 	curproc->file_desc[fd]->offset = 0;
 	curproc->file_desc[fd]->lock = lock_create(saneFileName);
+	curproc->file_desc[fd]->flag = flag;
 	if (curproc->file_desc[fd]->lock == NULL) {
 		*err = ENOMEM;
 		return -1;
@@ -78,6 +79,14 @@ int sys_read(int fd, userptr_t buffer, size_t bufsize, int * err) {
 	return 0;
 }
 int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
+	if (fd < 0 || fd >= __OPEN_MAX || curproc->file_desc[fd] == NULL) {
+		*err = EBADF;
+		return -1;
+	}
+	if (curproc->file_desc[fd]->flag == O_RDONLY) {
+		*err = EINVAL;
+		return -1;
+	}
 	(void)fd;
 	(void)buffer;
 	(void)bytesize;
