@@ -112,9 +112,9 @@ syscall(struct trapframe *tf)
 				 (userptr_t)tf->tf_a1);
 		break;
 		/* OUR ADDED STUFF */
-		///TODO Look into error stuff todo a table or refrence error to the functions?
+		///TODO Look into error stuffa table or refrence error to the functions?
 		case SYS_open:
-			retval = sys_open(/*Filename*/(const char*)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2);
+			retval = sys_open(/*Pathname*/(userptr_t)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2);
 			break;
 		case SYS_read:
 			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(void*)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2);
@@ -122,17 +122,21 @@ syscall(struct trapframe *tf)
 		case SYS_write: 
 			retval = sys_write(/*filehandle*/(int)tf->tf_a0,/*buffer*/(const void*)tf->tf_a1,/*bytesize*/(size_t)tf->tf_a2);
 			break;
+		//Special case
 		case SYS_lseek: 
-			//Special case
-			;
+			;//Empty statment (must keep)
 			uint64_t pos;
 			int whence = 0;
 			//Take arg a2 and a3 into pos
-			join32to64(tf->tf_a2,tf->tf_a3, &pos); //TODO: See if return a val
+			join32to64((uint32_t)tf->tf_a2,(uint32_t)tf->tf_a3, &pos);
 			//copy in from stack to the last arg
-			copyin(/*userpointer to stack*/(userptr_t)tf->tf_sp + 16,/*usrptr into*/ &whence, /*size of into*/sizeof(int)); //TODO: See if return a val
-			//ATM this does not work, as sys_lseek returns 64bit, so we need to return to a 64bit then split it before we exit		
-			retval = sys_lseek(/*filehandle*/(int)tf->tf_a0,/*position 64bit*/pos, /*seek_(set/cur/end)*/whence);
+			err = copyin(/*userpointer to stack*/(userptr_t)tf->tf_sp + 16,/*usrptr into*/ &whence, /*size of into*/sizeof(int)); //return 0 if sucess
+			if (err) {
+				break;
+			}
+			//ATM this does not work, as sys_lseek returns 64bit, so we need to return to a 64bit then split it before we exit	
+			//Technacally supposed to return a off_t, but since it will be cast to a uint64, don't know if it matters
+			split64to32(sys_lseek(/*filehandle*/(int)tf->tf_a0,/*position 64bit*/pos, /*seek_(set/cur/end)*/whence),&tf->tf_v0, &tf->tf_v1);
 			break;
 		case SYS_close:
 			retval = sys_close(/*filehandle*/(int)tf->tf_a0);
@@ -158,7 +162,11 @@ syscall(struct trapframe *tf)
 	}
 	else {
 		/* Success. */
-		tf->tf_v0 = retval;
+		//If it was SYS_lseek we have already given v0 a value
+		if (!SYS_lseek) {
+			tf->tf_v0 = retval;
+		}
+			
 		tf->tf_a3 = 0;      /* signal no error */
 	}
 
@@ -186,5 +194,5 @@ syscall(struct trapframe *tf)
 void
 enter_forked_process(struct trapframe *tf)
 {
-	(void)tf;
+	(void)tf;	
 }

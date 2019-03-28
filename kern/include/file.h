@@ -15,7 +15,7 @@
  * Put your function declarations and data types here ...
  */
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/open.html
-int sys_open(const char* filename, int flag, mode_t mode);
+int sys_open(userptr_t filename, int flag, mode_t mode);
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/read.html
 int sys_read(int fd, void* buffer, size_t bufsize);
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/write.html

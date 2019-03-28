@@ -12,14 +12,17 @@
 #include <vfs.h>
 #include <vnode.h>
 #include <file.h>
+
 #include <syscall.h>
 #include <copyinout.h>
+//#include <unistd.h>
+//#include <seek.h> //For lseek's set/cur/end
 
 /*
  * Add your file-related functions here ...
  */
 
-int sys_open(const char* filename, int flag, mode_t mode) {
+int sys_open(userptr_t filename, int flag, mode_t mode) {
 	(void)filename;
 	(void)flag;
 	(void)mode;
