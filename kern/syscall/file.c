@@ -18,11 +18,11 @@
 //#include <unistd.h>
 //#include <seek.h> //For lseek's set/cur/end
 #include <vfs.h>
+#include<proc.h>
 
 /*
  * Add your file-related functions here ...
  */
-
 int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	char* saneFileName = kmalloc(sizeof(char)*__PATH_MAX);
 	if (saneFileName == NULL) {
@@ -31,23 +31,44 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	}
 	size_t len;
 	//This sanitize the user pointer to kernel space
-	*err = copyinstr(filename, saneFileName, __PATH_MAX, &len); 
+	*err = copyinstr(filename, saneFileName, __PATH_MAX, &len);
 	if (err) {
 		return -1;//Returns -1 if failed
 	}
-	//DO some stuff here
-	/*
-	DO STUFF WITH PROC HERE AND FD
-	*/
 
-
-		struct vnode* vn;
-	*err = vfs_open(saneFileName,flag,mode,&vn);
+	//fd after stderr
+	int fd;
+	//Find first avalable file_desc
+	for (fd = 3; fd < __OPEN_MAX; fd++) {
+		if (curproc->file_desc[fd] == NULL) {
+			break;
+		}
+	}
+	//If the first "avalable" is outside the amout of possible open files
+	if (fd == __OPEN_MAX) {
+		*err = ENFILE;
+		return -1;
+	}
+	curproc->file_desc[fd] = kmalloc(sizeof(struct file));
+	if (curproc->file_desc[fd] == NULL){
+		*err = ENOMEM;
+		return -1;
+	}
+	struct vnode* vn;
+	*err = vfs_open(saneFileName, flag, mode, &vn);
 	if (err) {
 		return -1;//Returns -1 if failed
 	}
-	kfree(vn);
-	return 0;//Sucess!!!
+	//curproc->file_desc[fd]->fd = fd;
+	curproc->file_desc[fd]->vnode = vn;
+	curproc->file_desc[fd]->offset = 0;
+	curproc->file_desc[fd]->lock = lock_create(saneFileName);
+	if (curproc->file_desc[fd]->lock == NULL) {
+		*err = ENOMEM;
+		return -1;
+	}
+	kfree(saneFileName);
+	return fd;//Sucess!!!
 }
 int sys_read(int fd, userptr_t buffer, size_t bufsize, int * err) {
 	(void)fd;

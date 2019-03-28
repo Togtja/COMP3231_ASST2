@@ -9,11 +9,18 @@
  * Contains some file-related maximum length constants
  */
 #include <limits.h>
-
+#include <vnode.h>
+#include <synch.h>
 
 /*
  * Put your function declarations and data types here ...
  */
+struct file {
+	struct vnode* vnode;
+	off_t offset;
+	struct lock* lock;
+};
+
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/open.html
 int sys_open(userptr_t filename, int flag, mode_t mode, int * err);
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/read.html

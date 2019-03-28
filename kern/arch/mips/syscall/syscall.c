@@ -115,7 +115,9 @@ syscall(struct trapframe *tf)
 		///TODO Look into error stuff, a table or refrence error to the functions?
 		case SYS_open:
 			retval = sys_open(/*Pathname*/(userptr_t)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2, &err);
+			kprintf("We did a open %d\n", callno);
 			break;
+
 		case SYS_read:
 			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(userptr_t)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2, &err);
 			break;
@@ -144,6 +146,7 @@ syscall(struct trapframe *tf)
 		case SYS_dup2:
 			retval = sys_dub2(/*old filehandle*/(int)tf->tf_a0, /*new filehandle*/(int)tf->tf_a1, &err);
 			break;
+
 	    default:
 		kprintf("Unknown syscall %d\n", callno);
 		err = ENOSYS;
@@ -157,6 +160,7 @@ syscall(struct trapframe *tf)
 		 * userlevel to a return value of -1 and the error
 		 * code in errno.
 		 */
+		kprintf("An Error of: %d\n", err);
 		tf->tf_v0 = err;
 		tf->tf_a3 = 1;      /* signal an error */
 	}

@@ -45,6 +45,9 @@
 #include <syscall.h>
 #include <test.h>
 
+#include<limits.h>
+#include<file.h>
+
 /*
  * Load program "progname" and start running it in usermode.
  * Does not return except on error.
@@ -67,6 +70,11 @@ runprogram(char *progname)
 
 	/* We should be a new process. */
 	KASSERT(proc_getas() == NULL);
+
+	//Initilize the fd stuff
+	curproc->file_desc[0] = kmalloc(sizeof(struct file));
+	curproc->file_desc[1] = kmalloc(sizeof(struct file));
+	curproc->file_desc[2] = kmalloc(sizeof(struct file));
 
 	/* Create a new address space. */
 	as = as_create();
