@@ -116,7 +116,6 @@ syscall(struct trapframe *tf)
 			retval = sys_open(/*Pathname*/(userptr_t)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2, &err);
 			kprintf("We did a open %d\n", callno);
 			break;
-
 		case SYS_read:
 			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(userptr_t)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2, &err);
 			kprintf("We did a read %d\n", callno);
@@ -170,6 +169,13 @@ syscall(struct trapframe *tf)
 	}
 	else {
 		/* Success. */
+		/// DEBUG ///
+		if (retval < 0) {
+			kprintf("This shoul NOT happen! Value %d\n", retval);
+		}
+
+
+
 		//If it was SYS_lseek we have already given v0 a value
 		if (!SYS_lseek) {
 			tf->tf_v0 = retval;

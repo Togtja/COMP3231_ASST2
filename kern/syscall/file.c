@@ -32,7 +32,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	size_t len;
 	//This sanitize the user pointer to kernel space
 	*err = copyinstr(filename, saneFileName, __PATH_MAX, &len);
-	if (err) {
+	if (*err) {
 		kfree(saneFileName);
 		return -1;//Returns -1 if failed
 	}
@@ -59,7 +59,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	}
 	struct vnode* vn;
 	*err = vfs_open(saneFileName, flag, mode, &vn);
-	if (err) {
+	if (*err) {
 		kfree(saneFileName);
 		return -1;//Returns -1 if failed
 	}
@@ -100,7 +100,7 @@ int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
 		return -1;
 	}
 	*err = copyin(buffer, saneBuffer, bytesize);
-	if (err) {
+	if (*err) {
 		return -1;
 	}
 	struct uio wuio;
@@ -111,7 +111,7 @@ int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
 	lock_acquire(curproc->file_desc[fd]->lock);
 	uio_kinit(&wiovec, &wuio, saneBuffer, bytesize, curproc->file_desc[fd]->offset, UIO_WRITE);
 	*err = VOP_WRITE(curproc->file_desc[fd]->vnode, &wuio);
-	if (err) {
+	if (*err) {
 		lock_release(curproc->file_desc[fd]->lock);
 		kfree(saneBuffer);
 		return -1;
