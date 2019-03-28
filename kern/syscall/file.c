@@ -79,11 +79,47 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	return fd;//Sucess!!!
 }
 int sys_read(int fd, userptr_t buffer, size_t bufsize, int * err) {
-	(void)fd;
-	(void)buffer;
-	(void)bufsize;
-	(void)err;
-	return 0;
+	if (fd < 0 || fd >= __OPEN_MAX || curproc->file_desc[fd] == NULL) {
+		*err = EBADF;
+		return -1;
+	}
+	if (curproc->file_desc[fd]->flag == O_WRONLY) {
+		*err = EACCES; //Maybe make EOWFS (Write-Only File System error)
+		return -1;
+	}
+	void* saneBuffer = kmalloc(sizeof(void *) * bufsize);
+	if (saneBuffer == NULL) {
+		*err = ENOMEM;
+		return -1;
+	}
+	*err = copyin(buffer, saneBuffer, bufsize);
+	if (*err) {
+		return -1;
+	}
+	struct uio ruio;
+	struct iovec riovec;
+
+	//Start reading
+	lock_acquire(curproc->file_desc[fd]->lock);
+	uio_kinit(&riovec, &ruio, saneBuffer, bufsize, curproc->file_desc[fd]->offset, UIO_READ);
+	*err = VOP_READ(curproc->file_desc[fd]->vnode, &ruio);
+	if (*err) {
+		lock_release(curproc->file_desc[fd]->lock);
+		kfree(saneBuffer);
+		return -1;
+	}
+	int read = bufsize - ruio.uio_resid;
+
+	*err = copyout(saneBuffer, buffer, read);
+	if (*err) {
+		kfree(saneBuffer);
+		lock_release(curproc->file_desc[fd]->lock);
+		return -1;
+	}
+	curproc->file_desc[fd]->offset += read;
+	lock_release(curproc->file_desc[fd]->lock);
+	kfree(saneBuffer);
+	return read;
 }
 int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
 	if (fd < 0 || fd >= __OPEN_MAX || curproc->file_desc[fd] == NULL) {
