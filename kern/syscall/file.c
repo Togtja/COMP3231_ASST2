@@ -29,11 +29,13 @@ int free_file(struct file* f) {
 	}
 	if (f->vnode != NULL) {
 		vfs_close(f->vnode);
+		f->vnode = NULL;
 	}
 	if (f->lock != NULL) {
 		lock_destroy(f->lock);
 	}
 	kfree(f);
+	f = NULL;
 	return 0;
 }
 
@@ -76,7 +78,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	struct vnode* vn;
 	*err = vfs_open(saneFileName, flag, mode, &vn);
 	if (*err) {
-		vfs_close(vn);
+		//vfs_close(vn); should be closed in free_file
 		kfree(saneFileName);
 		free_file(curproc->file_desc[fd]);
 		return -1;//Returns -1 if failed
@@ -90,7 +92,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	//Make sure we have enough memory for the lock
 	if (curproc->file_desc[fd]->lock == NULL) {
 		*err = ENOMEM;
-		vfs_close(vn);
+		//vfs_close(vn);
 		kfree(saneFileName);
 		free_file(curproc->file_desc[fd]);//If we can't create the lock we just free the whole file
 		return -1;
@@ -245,13 +247,41 @@ int sys_close(int fd, int * err) {
 		lock_release(overLock);
 		return -1;
 	}
-	curproc->file_desc[fd] = NULL;
 	lock_release(overLock);
 	return 0;
 }
 int sys_dub2(int oldfd, int newfd, int * err) {
-	(void)oldfd;
-	(void)newfd;
-	(void)err;
-	return 0;
+	
+	if (oldfd < 0 || oldfd >= __OPEN_MAX || curproc->file_desc[oldfd] == NULL) {
+		*err = EBADF;
+		return -1;
+	}
+	if (newfd < 0 || newfd >= __OPEN_MAX) {
+		*err = EBADF;
+		return -1;
+	}
+	//If newhandle already exisit, close it
+	if (curproc->file_desc[newfd] != NULL) {
+		*err = sys_close(newfd, &err);
+		if (err) {
+			return -1;
+		}
+	}
+	//Potential for deadlock
+	lock_acquire(curproc->file_desc[oldfd]);
+	//Copy the info from old to new, or just point to new?
+	//currently join point to the same 
+	//(but then if i close it, i will also remove vnode for oldfd, this needs to be fixed)
+	*curproc->file_desc[newfd]->vnode = *curproc->file_desc[oldfd]->vnode;
+	curproc->file_desc[newfd]->offset = curproc->file_desc[oldfd]->offset;
+	curproc->file_desc[newfd]->flag = curproc->file_desc[oldfd]->flag;
+	curproc->file_desc[newfd]->lock = lock_create("dub_lock of oldfd");
+	if (curproc->file_desc[newfd]->lock == NULL) {
+		*err = ENOMEM;
+		free_file(curproc->file_desc[fd]);
+		return -1;
+	}
+	lock_release(curproc->file_desc[oldfd]);
+
+	return newfd;
 }
