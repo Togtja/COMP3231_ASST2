@@ -203,20 +203,17 @@ off_t sys_lseek(int fd, uint64_t pos, int whence, int * err) {
 		*err = EBADF;
 		return -1;
 	}
+	off_t ret;
 	lock_acquire(curproc->file_desc[fd]->lock);
 	//Maybe make a switch??? hmmm??
-	/*
-	There may also be cases of invalid pos we propably should check for?
-	But it works for now
-	
-	*/
+
 	//The new position is pos
 	if (SEEK_SET == whence) {
-		curproc->file_desc[fd]->offset = pos;
+		ret = pos;
 	}
 	//The new position is current position/ofset + pos
 	else if (SEEK_CUR == whence) {
-		curproc->file_desc[fd]->offset += pos;
+		ret = pos;
 	}
 	//The new position is eof + pos
 	else if (SEEK_END == whence) {
@@ -228,15 +225,20 @@ off_t sys_lseek(int fd, uint64_t pos, int whence, int * err) {
 			lock_release(curproc->file_desc[fd]->lock);
 			return -1;
 		}
-		curproc->file_desc[fd]->offset = stat.st_size + pos;
+		ret = stat.st_size + pos;
 
 	}
 	//everything else fail
 	else {
 		lock_release(curproc->file_desc[fd]->lock);
-		return EINVAL;
+		*err = EINVAL;
+		return -1;
 	}
-	off_t ret = curproc->file_desc[fd]->offset;
+	if (ret < 0) {
+		*err = EINVAL;
+		return -1;
+	}
+	curproc->file_desc[fd]->offset = ret;
 	lock_release(curproc->file_desc[fd]->lock);
 	return ret;
 }
