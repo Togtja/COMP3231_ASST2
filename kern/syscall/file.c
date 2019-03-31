@@ -186,12 +186,49 @@ int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
 	
 	return writen;
 }
+
+
 off_t sys_lseek(int fd, uint64_t pos, int whence, int * err) {
-	(void)fd;
-	(void)pos;
-	(void)whence;
-	(void)err;
-	return 0;
+	if (fd < 0 || fd >= __OPEN_MAX || curproc->file_desc[fd] == NULL) {
+		*err = EBADF;
+		return -1;
+	}
+	lock_acquire(curproc->file_desc[fd]->lock);
+	//Maybe make a switch??? hmmm??
+	/*
+	There may also be cases of invalid pos we propably should check for?
+	But it works for now
+	
+	*/
+	//The new position is pos
+	if (SEEK_SET == whence) {
+		curproc->file_desc[fd]->offset = pos;
+	}
+	//The new position is current position/ofset + pos
+	else if (SEEK_CUR == whence) {
+		curproc->file_desc[fd]->offset += pos;
+	}
+	//The new position is eof + pos
+	else if (SEEK_END == whence) {
+		
+		struct stat stat;
+		
+		*err = VOP_STAT(curproc->file_desc[fd]->vnode, &stat);
+		if (*err) {
+			lock_release(curproc->file_desc[fd]->lock);
+			return -1;
+		}
+		curproc->file_desc[fd]->offset = stat.st_size + pos;
+
+	}
+	//everything else fail
+	else {
+		lock_release(curproc->file_desc[fd]->lock);
+		return EINVAL;
+	}
+	off_t ret = curproc->file_desc[fd]->offset;
+	lock_release(curproc->file_desc[fd]->lock);
+	return ret;
 }
 int sys_close(int fd, int * err) {
 	//CLOSE GOT TO FREE THE FILE AFTER IT ISDONE WITH FILE
