@@ -15,6 +15,8 @@
 /*
  * Put your function declarations and data types here ...
  */
+struct lock* overLock;
+
 //REMEMBER TO DESTROY THE LOCKS AND CLOSE THE VNODE WHEN FREEING
 
 
@@ -26,8 +28,9 @@ struct file {
 	int flag;
 };
 
+//A destructor for the file struct
+int free_file(struct file* f);
 
-void free_file(struct file* f);
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/open.html
 int sys_open(userptr_t filename, int flag, mode_t mode, int * err);
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/read.html

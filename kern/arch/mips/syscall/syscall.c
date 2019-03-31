@@ -114,19 +114,21 @@ syscall(struct trapframe *tf)
 		/* OUR ADDED STUFF */
 		case SYS_open:
 			retval = sys_open(/*Pathname*/(userptr_t)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2, &err);
-			kprintf("We did a open %d\n", callno);
+			//kprintf("We did a open %d\n", callno);
+			//kprintf("fd is : %d\n", retval);
 			break;
 		case SYS_read:
 			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(userptr_t)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2, &err);
-			kprintf("We did a read %d\n", callno);
+			//kprintf("We did a read %d\n", callno);
 			break;
 		case SYS_write: 
 			retval = sys_write(/*filehandle*/(int)tf->tf_a0,/*buffer*/(userptr_t)tf->tf_a1,/*bytesize*/(size_t)tf->tf_a2, &err);
-			kprintf("We did a write %d\n", callno);
+			//kprintf("We did a write %d\n", callno);
 			break;
 		//Special case
 		case SYS_lseek: 
 			;//Empty statment (must keep)
+			kprintf("We did a lseek %d\n", callno);
 			uint64_t offset;
 			int whence = 0;
 			//Take arg a2 and a3 into pos
@@ -139,15 +141,19 @@ syscall(struct trapframe *tf)
 			//switched to off_t after seeing assigment 2 tips, again
 			split64to32(sys_lseek(/*filehandle*/(int)tf->tf_a0,/*position 64bit*/offset, /*seek_(set/cur/end)*/whence, &err),
 				&tf->tf_v0, &tf->tf_v1);
-			kprintf("We did a lseek %d\n", callno);
+			
 			break;
 		case SYS_close:
+
+			//kprintf("We did a close %d\n", callno);
 			retval = sys_close(/*filehandle*/(int)tf->tf_a0, &err);
-			kprintf("We did a close %d\n", callno);
+			
 			break;
 		case SYS_dup2:
-			retval = sys_dub2(/*old filehandle*/(int)tf->tf_a0, /*new filehandle*/(int)tf->tf_a1, &err);
+
 			kprintf("We did a dub2 %d\n", callno);
+			retval = sys_dub2(/*old filehandle*/(int)tf->tf_a0, /*new filehandle*/(int)tf->tf_a1, &err);
+			
 			break;
 
 	    default:
@@ -163,7 +169,11 @@ syscall(struct trapframe *tf)
 		 * userlevel to a return value of -1 and the error
 		 * code in errno.
 		 */
-		kprintf("An Error of: %d\n", err);
+		//kprintf("An Error of: %d\n", err);
+		if (callno == SYS_read) {
+			//kprintf("The read error was: %d\n", err);
+		}
+
 		tf->tf_v0 = err;
 		tf->tf_a3 = 1;      /* signal an error */
 	}
@@ -173,14 +183,19 @@ syscall(struct trapframe *tf)
 		if (retval < 0) {
 			kprintf("This shoul NOT happen! Value %d\n", retval);
 		}
+		if (callno == SYS_read) {
+			//kprintf("The read return was: %d\n", retval);
+		}
 
 
 
 		//If it was SYS_lseek we have already given v0 a value
-		if (!SYS_lseek) {
+		if (SYS_lseek != callno) {
+			//kprintf("fd is : %d\n", retval);
 			tf->tf_v0 = retval;
 		}
-			
+		//kprintf("fd is : %d\n", retval);
+		//tf->tf_v0 = retval;
 		tf->tf_a3 = 0;      /* signal no error */
 	}
 

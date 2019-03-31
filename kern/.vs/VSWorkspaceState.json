@@ -1,6 +1,13 @@
 {
   "ExpandedNodes": [
-    ""
+    "\\arch",
+    "\\arch\\mips",
+    "\\arch\\mips\\syscall",
+    "\\compile",
+    "\\compile\\ASST2",
+    "\\include",
+    "\\include\\kern",
+    "\\syscall"
   ],
   "PreviewInSolutionExplorer": false
 }

@@ -54,33 +54,35 @@
  *
  * Calls vfs_open on progname and thus may destroy it.
  */
-int
-runprogram(char *progname)
-{
-	int result;
+static int std_init() {
 	//Initilize the fd stuff
-	struct vnode* fdv;
-	char * con = kstrdup("con:");
+	int result;
+
+	struct vnode* v1;
+	struct vnode* v2;
+	struct vnode* v3;
+
+
+	char c1[] = "con:";
+	char c2[] = "con:";
+	char c3[] = "con:";
 	//STDIN
 	curproc->file_desc[0] = kmalloc(sizeof(struct file));
 	if (curproc->file_desc[0] == NULL) {
-		kfree(con);
 		return ENOMEM;
 	}
-	result = vfs_open(con, O_RDONLY, 0, &fdv);
+	result = vfs_open(c1, O_RDONLY, 0644, &v1);
 	if (result) {
 		free_file(curproc->file_desc[0]);
-		vfs_close(fdv);
-		kfree(con);
+		vfs_close(v1);
 		return result;
 	}
-	curproc->file_desc[0]->vnode = fdv;
+	curproc->file_desc[0]->vnode = v1;
 	curproc->file_desc[0]->flag = O_RDONLY;
 	curproc->file_desc[0]->lock = lock_create("stdin");
 	if (curproc->file_desc[0]->lock == NULL) {
 		free_file(curproc->file_desc[0]);
-		vfs_close(fdv);
-		kfree(con);
+		vfs_close(v1);
 		return ENOMEM;
 	}
 	curproc->file_desc[0]->offset = 0;
@@ -89,28 +91,24 @@ runprogram(char *progname)
 	curproc->file_desc[1] = kmalloc(sizeof(struct file));
 	if (curproc->file_desc[1] == NULL) {
 		free_file(curproc->file_desc[0]);
-		vfs_close(fdv);
-		kfree(con);
+		//vfs_close(v1);
 		return ENOMEM;
 	}
-	con = kstrdup("con:");
-	result = vfs_open(con, O_WRONLY, 0, &fdv);
+	result = vfs_open(c2, O_WRONLY, 0644, &v2);
 	if (result) {
 		free_file(curproc->file_desc[0]);
 		kfree(curproc->file_desc[1]);
-		vfs_close(fdv);
-		kfree(con);
+		vfs_close(v2);
 		kprintf("TEST1");
 		return result;
 	}
-	curproc->file_desc[1]->vnode = fdv;
+	curproc->file_desc[1]->vnode = v2;
 	curproc->file_desc[1]->flag = O_WRONLY;
 	curproc->file_desc[1]->lock = lock_create("stdout");
 	if (curproc->file_desc[1]->lock == NULL) {
 		free_file(curproc->file_desc[0]);
 		free_file(curproc->file_desc[1]);
-		vfs_close(fdv);
-		kfree(con);
+		vfs_close(v2);
 		return ENOMEM;
 	}
 	curproc->file_desc[1]->offset = 0;
@@ -119,39 +117,49 @@ runprogram(char *progname)
 	if (curproc->file_desc[2] == NULL) {
 		free_file(curproc->file_desc[0]);
 		free_file(curproc->file_desc[1]);
-		vfs_close(fdv);
-		kfree(con);
+		//vfs_close(v2);
 		return ENOMEM;
 	}
-	con = kstrdup("con:");
-	result = vfs_open(con, O_WRONLY, 0, &fdv);
+	result = vfs_open(c3, O_WRONLY, 0644, &v3);
 	if (result) {
 		free_file(curproc->file_desc[0]);
 		free_file(curproc->file_desc[1]);
 		free_file(curproc->file_desc[2]);
-		vfs_close(fdv);
-		kfree(con);
+		vfs_close(v3);
 		kprintf("TEST2");
 		return result;
 	}
-	curproc->file_desc[2]->vnode = fdv;
+	curproc->file_desc[2]->vnode = v3;
 	curproc->file_desc[2]->flag = O_WRONLY;
 	curproc->file_desc[2]->lock = lock_create("stderr");
 	if (curproc->file_desc[2]->lock == NULL) {
 		free_file(curproc->file_desc[0]);
 		free_file(curproc->file_desc[1]);
 		free_file(curproc->file_desc[2]);
-		vfs_close(fdv);
-		kfree(con);
+		vfs_close(v3);
 		return ENOMEM;
 	}
 	curproc->file_desc[2]->offset = 0;
-	kfree(con);
 
+	overLock = lock_create("Over Lock");
+	return 0;
+}
+
+int
+runprogram(char *progname)
+{
+	int result = 0;
 	struct addrspace *as;
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
 	
+	//init std;
+	if (curproc->file_desc[0] == NULL && curproc->file_desc[1] == NULL && curproc->file_desc[2] == NULL) {
+		result = std_init();
+	}
+	if (result) {
+		return result;
+	}
 
 	/* Open the file. */
 	result = vfs_open(progname, O_RDONLY, 0, &v);

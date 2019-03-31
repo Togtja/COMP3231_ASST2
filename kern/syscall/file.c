@@ -23,17 +23,18 @@
 /*
  * Add your file-related functions here ...
  */
-void free_file(struct file* f) {
+int free_file(struct file* f) {
 	if (f == NULL) {
-		return;
+		return EBADF;
 	}
-//	if (f->vnode != NULL) {
-//		vfs_close(f->vnode);
-//	}
+	if (f->vnode != NULL) {
+		vfs_close(f->vnode);
+	}
 	if (f->lock != NULL) {
 		lock_destroy(f->lock);
 	}
 	kfree(f);
+	return 0;
 }
 
 int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
@@ -46,6 +47,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	//This sanitize the user pointer to kernel space
 	*err = copyinstr(filename, saneFileName, __PATH_MAX, &len);
 	if (*err) {
+		kprintf("\n\n OOOF \n\n");
 		kfree(saneFileName);
 		return -1;//Returns -1 if failed
 	}
@@ -55,6 +57,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	//Find first avalable file_desc
 	for (fd = 3; fd < __OPEN_MAX; fd++) {
 		if (curproc->file_desc[fd] == NULL) {
+			//kprintf("fd is : %d\n", fd);
 			break;
 		}
 	}
@@ -64,7 +67,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 		kfree(saneFileName);
 		return -1;
 	}
-	curproc->file_desc[fd] = kmalloc(sizeof(struct file));
+	curproc->file_desc[fd] = kmalloc(sizeof(struct file*));
 	if (curproc->file_desc[fd] == NULL){
 		*err = ENOMEM;
 		kfree(saneFileName);
@@ -75,9 +78,10 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	if (*err) {
 		vfs_close(vn);
 		kfree(saneFileName);
-		//free_file(curproc->file_desc[fd]);
+		free_file(curproc->file_desc[fd]);
 		return -1;//Returns -1 if failed
 	}
+	
 	//curproc->file_desc[fd]->fd = fd;
 	curproc->file_desc[fd]->vnode = vn;
 	curproc->file_desc[fd]->offset = 0;
@@ -92,6 +96,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 		return -1;
 	}
 	kfree(saneFileName);
+	//kprintf("fd is : %d\n", fd);
 	return fd;//Sucess!!!
 }
 int sys_read(int fd, userptr_t buffer, size_t bufsize, int * err) {
@@ -110,6 +115,7 @@ int sys_read(int fd, userptr_t buffer, size_t bufsize, int * err) {
 	}
 	*err = copyin(buffer, saneBuffer, bufsize);
 	if (*err) {
+		
 		return -1;
 	}
 	struct uio ruio;
@@ -126,15 +132,16 @@ int sys_read(int fd, userptr_t buffer, size_t bufsize, int * err) {
 	}
 	int read = bufsize - ruio.uio_resid;
 
-	*err = copyout(saneBuffer, buffer, read);
+	*err = copyout(saneBuffer, buffer, bufsize);
 	if (*err) {
 		kfree(saneBuffer);
 		lock_release(curproc->file_desc[fd]->lock);
 		return -1;
 	}
 	curproc->file_desc[fd]->offset += read;
-	lock_release(curproc->file_desc[fd]->lock);
 	kfree(saneBuffer);
+	lock_release(curproc->file_desc[fd]->lock);
+	//kprintf("\nread: %d bytes\n", read);
 	return read;
 }
 int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
@@ -153,6 +160,8 @@ int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
 	}
 	*err = copyin(buffer, saneBuffer, bytesize);
 	if (*err) {
+		//kprintf("\n\n OOOF BAD BUFFER IN WRITE \n\n");
+		kfree(saneBuffer);
 		return -1;
 	}
 	struct uio wuio;
@@ -171,9 +180,10 @@ int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
 
 	
 	curproc->file_desc[fd]->offset = wuio.uio_offset;
-	lock_release(curproc->file_desc[fd]->lock);
-	kfree(saneBuffer);
 	int writen = bytesize - wuio.uio_resid;
+	kfree(saneBuffer);
+	lock_release(curproc->file_desc[fd]->lock);
+	
 	return writen;
 }
 off_t sys_lseek(int fd, uint64_t pos, int whence, int * err) {
@@ -185,8 +195,21 @@ off_t sys_lseek(int fd, uint64_t pos, int whence, int * err) {
 }
 int sys_close(int fd, int * err) {
 	//CLOSE GOT TO FREE THE FILE AFTER IT ISDONE WITH FILE
-	(void)fd;
-	(void)err;
+
+	// WE MIGHT NEED A LOCK FOR CLOSE
+	lock_acquire(overLock);
+	if (fd < 0 || fd >= __OPEN_MAX || curproc->file_desc[fd] == NULL) {
+		*err = EBADF;
+		lock_release(overLock);
+		return -1;
+	}
+	*err = free_file(curproc->file_desc[fd]);
+	if (*err) {
+		lock_release(overLock);
+		return -1;
+	}
+	curproc->file_desc[fd] = NULL;
+	lock_release(overLock);
 	return 0;
 }
 int sys_dub2(int oldfd, int newfd, int * err) {
