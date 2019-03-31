@@ -262,13 +262,13 @@ int sys_dub2(int oldfd, int newfd, int * err) {
 	}
 	//If newhandle already exisit, close it
 	if (curproc->file_desc[newfd] != NULL) {
-		*err = sys_close(newfd, &err);
+		*err = sys_close(newfd, err);
 		if (err) {
 			return -1;
 		}
 	}
 	//Potential for deadlock
-	lock_acquire(curproc->file_desc[oldfd]);
+	lock_acquire(curproc->file_desc[oldfd]->lock);
 	//Copy the info from old to new, or just point to new?
 	//currently join point to the same 
 	//(but then if i close it, i will also remove vnode for oldfd, this needs to be fixed)
@@ -278,10 +278,10 @@ int sys_dub2(int oldfd, int newfd, int * err) {
 	curproc->file_desc[newfd]->lock = lock_create("dub_lock of oldfd");
 	if (curproc->file_desc[newfd]->lock == NULL) {
 		*err = ENOMEM;
-		free_file(curproc->file_desc[fd]);
+		free_file(curproc->file_desc[newfd]);
 		return -1;
 	}
-	lock_release(curproc->file_desc[oldfd]);
+	lock_release(curproc->file_desc[oldfd]->lock);
 
 	return newfd;
 }
