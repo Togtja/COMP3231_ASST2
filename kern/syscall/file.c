@@ -261,12 +261,15 @@ int sys_close(int fd, int * err) {
 	return 0;
 }
 int sys_dub2(int oldfd, int newfd, int * err) {
-	
 	if (oldfd < 0 || oldfd >= __OPEN_MAX || curproc->file_desc[oldfd] == NULL) {
 		*err = EBADF;
 		return -1;
 	}
 	if (newfd < 0 || newfd >= __OPEN_MAX) {
+		*err = EBADF;
+		return -1;
+	}
+	if (oldfd == newfd) {
 		*err = EBADF;
 		return -1;
 	}
@@ -281,17 +284,10 @@ int sys_dub2(int oldfd, int newfd, int * err) {
 	lock_acquire(curproc->file_desc[oldfd]->lock);
 	//Copy the info from old to new, or just point to new?
 	//currently join point to the same 
-	//(but then if i close it, i will also remove vnode for oldfd, this needs to be fixed)
-	*curproc->file_desc[newfd]->vnode = *curproc->file_desc[oldfd]->vnode;
-	curproc->file_desc[newfd]->offset = curproc->file_desc[oldfd]->offset;
-	curproc->file_desc[newfd]->flag = curproc->file_desc[oldfd]->flag;
-	curproc->file_desc[newfd]->lock = lock_create("dub_lock of oldfd");
-	if (curproc->file_desc[newfd]->lock == NULL) {
-		*err = ENOMEM;
-		free_file(&curproc->file_desc[newfd]);
-		return -1;
-	}
+	//(but then if i close any of them, this will remove both, should this be fixed?)
+	
+	curproc->file_desc[newfd] = curproc->file_desc[oldfd];
+	
 	lock_release(curproc->file_desc[oldfd]->lock);
-
 	return newfd;
 }

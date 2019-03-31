@@ -144,16 +144,10 @@ syscall(struct trapframe *tf)
 			
 			break;
 		case SYS_close:
-
-			//kprintf("We did a close %d\n", callno);
 			retval = sys_close(/*filehandle*/(int)tf->tf_a0, &err);
-			
 			break;
 		case SYS_dup2:
-
-			kprintf("We did a dub2 %d\n", callno);
 			retval = sys_dub2(/*old filehandle*/(int)tf->tf_a0, /*new filehandle*/(int)tf->tf_a1, &err);
-			
 			break;
 
 	    default:
@@ -169,11 +163,6 @@ syscall(struct trapframe *tf)
 		 * userlevel to a return value of -1 and the error
 		 * code in errno.
 		 */
-		//kprintf("An Error of: %d\n", err);
-		if (callno == SYS_read) {
-			//kprintf("The read error was: %d\n", err);
-		}
-
 		tf->tf_v0 = err;
 		tf->tf_a3 = 1;      /* signal an error */
 	}
@@ -183,19 +172,11 @@ syscall(struct trapframe *tf)
 		if (retval < 0) {
 			kprintf("This shoul NOT happen! Value %d\n", retval);
 		}
-		if (callno == SYS_read) {
-			//kprintf("The read return was: %d\n", retval);
-		}
-
-
 
 		//If it was SYS_lseek we have already given v0 a value
 		if (SYS_lseek != callno) {
-			//kprintf("fd is : %d\n", retval);
 			tf->tf_v0 = retval;
 		}
-		//kprintf("fd is : %d\n", retval);
-		//tf->tf_v0 = retval;
 		tf->tf_a3 = 0;      /* signal no error */
 	}
 
