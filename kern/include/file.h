@@ -17,10 +17,6 @@
  */
 struct lock* overLock;
 
-//REMEMBER TO DESTROY THE LOCKS AND CLOSE THE VNODE WHEN FREEING
-
-
-
 struct file {
 	struct vnode* vnode;
 	off_t offset;
@@ -29,7 +25,7 @@ struct file {
 };
 
 //A destructor for the file struct
-int free_file(struct file* f);
+int free_file(struct file** f);
 
 //https://courses.cs.washington.edu/courses/cse451/15sp/documents/os161-man/syscall/open.html
 int sys_open(userptr_t filename, int flag, mode_t mode, int * err);

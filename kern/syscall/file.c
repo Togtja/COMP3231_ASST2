@@ -23,19 +23,27 @@
 /*
  * Add your file-related functions here ...
  */
-int free_file(struct file* f) {
-	if (f == NULL) {
+int free_file(struct file** f) {
+	/*
+	if (*f == NULL) {
 		return EBADF;
 	}
-	if (f->vnode != NULL) {
+	if (*f->vnode != NULL) {
 		vfs_close(f->vnode);
 		f->vnode = NULL;
 	}
-	if (f->lock != NULL) {
+	if (*f->lock != NULL) {
 		lock_destroy(f->lock);
 	}
-	kfree(f);
-	f = NULL;
+	*/
+	kfree(*f);
+	*f = NULL;
+	/*
+	if (*f != NULL) {
+		kprintf("\nTHE BIGGEST WHAT\n");
+	}
+	*/
+	
 	return 0;
 }
 
@@ -80,7 +88,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	if (*err) {
 		//vfs_close(vn); should be closed in free_file
 		kfree(saneFileName);
-		free_file(curproc->file_desc[fd]);
+		free_file(&curproc->file_desc[fd]);
 		return -1;//Returns -1 if failed
 	}
 	
@@ -94,7 +102,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 		*err = ENOMEM;
 		//vfs_close(vn);
 		kfree(saneFileName);
-		free_file(curproc->file_desc[fd]);//If we can't create the lock we just free the whole file
+		free_file(&curproc->file_desc[fd]);//If we can't create the lock we just free the whole file
 		return -1;
 	}
 	kfree(saneFileName);
@@ -242,7 +250,7 @@ int sys_close(int fd, int * err) {
 		lock_release(overLock);
 		return -1;
 	}
-	*err = free_file(curproc->file_desc[fd]);
+	*err = free_file(&curproc->file_desc[fd]);
 	if (*err) {
 		lock_release(overLock);
 		return -1;
@@ -278,7 +286,7 @@ int sys_dub2(int oldfd, int newfd, int * err) {
 	curproc->file_desc[newfd]->lock = lock_create("dub_lock of oldfd");
 	if (curproc->file_desc[newfd]->lock == NULL) {
 		*err = ENOMEM;
-		free_file(curproc->file_desc[newfd]);
+		free_file(&curproc->file_desc[newfd]);
 		return -1;
 	}
 	lock_release(curproc->file_desc[oldfd]->lock);
