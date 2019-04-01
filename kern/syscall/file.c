@@ -24,25 +24,24 @@
  * Add your file-related functions here ...
  */
 int free_file(struct file** f) {
-	/*
+	
 	if (*f == NULL) {
 		return EBADF;
 	}
-	if (*f->vnode != NULL) {
-		vfs_close(f->vnode);
-		f->vnode = NULL;
+	if ((*f)->lock == NULL) {
+		return 0;
 	}
-	if (*f->lock != NULL) {
-		lock_destroy(f->lock);
+	/*
+	if ((*f)->vnode != NULL) {
+		vfs_close((*f)->vnode);
+		(*f)->vnode = NULL;
+	}
+	if ((*f)->lock != NULL) {
+		lock_destroy((*f)->lock);
 	}
 	*/
 	kfree(*f);
 	*f = NULL;
-	/*
-	if (*f != NULL) {
-		kprintf("\nTHE BIGGEST WHAT\n");
-	}
-	*/
 	
 	return 0;
 }
@@ -86,9 +85,10 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	struct vnode* vn;
 	*err = vfs_open(saneFileName, flag, mode, &vn);
 	if (*err) {
-		//vfs_close(vn); should be closed in free_file
+		kprintf("filename: %s\n", saneFileName);
 		kfree(saneFileName);
 		free_file(&curproc->file_desc[fd]);
+		kprintf("\n\n VFS_OPEN FAILED\n\n");
 		return -1;//Returns -1 if failed
 	}
 	
