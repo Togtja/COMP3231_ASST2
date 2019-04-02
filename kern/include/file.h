@@ -22,6 +22,7 @@ struct file {
 	off_t offset;
 	struct lock* lock;
 	int flag;
+	int ref;
 };
 
 //A destructor for the file struct

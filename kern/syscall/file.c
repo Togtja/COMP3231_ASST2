@@ -20,6 +20,9 @@
 #include <vfs.h>
 #include<proc.h>
 
+
+//Debug comand __LINE__ (Gives line nr)
+//				__func_ (gives which func we are inside) 
 /*
  * Add your file-related functions here ...
  */
@@ -28,19 +31,21 @@ int free_file(struct file** f) {
 	if (*f == NULL) {
 		return EBADF;
 	}
-	if ((*f)->lock == NULL) {
-		return 0;
+	if ((*f)->ref > 1) {
+		(*f)->ref--;
 	}
-	/*
-	if ((*f)->vnode != NULL) {
-		vfs_close((*f)->vnode);
-		(*f)->vnode = NULL;
+	else {
+		
+		if ((*f)->vnode != NULL) {
+			vfs_close((*f)->vnode);
+			(*f)->vnode = NULL;
+		}
+		if ((*f)->lock != NULL) {
+			lock_destroy((*f)->lock);
+		}
+		
+		kfree(*f);
 	}
-	if ((*f)->lock != NULL) {
-		lock_destroy((*f)->lock);
-	}
-	*/
-	kfree(*f);
 	*f = NULL;
 	
 	return 0;
@@ -71,6 +76,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 		}
 	}
 	//If the first "avalable" is outside the amout of possible open files
+	//If the first "avalable" is outside the amout of possible open files
 	if (fd == __OPEN_MAX) {
 		*err = ENFILE;
 		kfree(saneFileName);
@@ -97,6 +103,7 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	curproc->file_desc[fd]->offset = 0;
 	curproc->file_desc[fd]->lock = lock_create(saneFileName);
 	curproc->file_desc[fd]->flag = flag;
+	curproc->file_desc[fd]->ref = 1;
 	//Make sure we have enough memory for the lock
 	if (curproc->file_desc[fd]->lock == NULL) {
 		*err = ENOMEM;
@@ -128,11 +135,10 @@ int sys_read(int fd, userptr_t buffer, size_t bufsize, int * err) {
 		
 		return -1;
 	}
-	struct uio ruio;
-	struct iovec riovec;
-
 	//Start reading
 	lock_acquire(curproc->file_desc[fd]->lock);
+	struct uio ruio;
+	struct iovec riovec;
 	uio_kinit(&riovec, &ruio, saneBuffer, bufsize, curproc->file_desc[fd]->offset, UIO_READ);
 	*err = VOP_READ(curproc->file_desc[fd]->vnode, &ruio);
 	if (*err) {
@@ -170,13 +176,11 @@ int sys_write(int fd, userptr_t buffer, size_t bytesize, int * err) {
 	}
 	*err = copyin(buffer, saneBuffer, bytesize);
 	if (*err) {
-		//kprintf("\n\n OOOF BAD BUFFER IN WRITE \n\n");
-		kfree(saneBuffer);
 		return -1;
 	}
+	//kprintf(saneBuffer);
 	struct uio wuio;
 	struct iovec wiovec;
-	
 	//Start writing to the file
 	//Remember to release lock if error
 	lock_acquire(curproc->file_desc[fd]->lock);
@@ -287,7 +291,8 @@ int sys_dub2(int oldfd, int newfd, int * err) {
 	//(but then if i close any of them, this will remove both, should this be fixed?)
 	
 	curproc->file_desc[newfd] = curproc->file_desc[oldfd];
-	
+
+	curproc->file_desc[newfd]->ref++;
 	lock_release(curproc->file_desc[oldfd]->lock);
 	return newfd;
 }
