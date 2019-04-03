@@ -158,18 +158,11 @@ syscall(struct trapframe *tf)
 		 * userlevel to a return value of -1 and the error
 		 * code in errno.
 		 */
-		;;
-		kprintf("The error Nr is %d\n", err);
-		;;
 		tf->tf_v0 = err;
 		tf->tf_a3 = 1;      /* signal an error */
 	}
 	else {
 		/* Success. */
-		/// DEBUG ///
-		if (retval < 0) {
-			kprintf("This shoul NOT happen! Value %d\n", retval);
-		}
 
 		//If it was SYS_lseek we have already given v0 a value
 		if (SYS_lseek != callno) {

@@ -24,7 +24,6 @@ struct file {
 	int flag;
 	int ref;
 };
-struct vnode* testOfNodes[128];
 //A destructor for the file struct
 int free_file(struct file** f);
 

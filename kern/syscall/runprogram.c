@@ -59,7 +59,6 @@ static int std_init() {
 	int result;
 	//STDIN
 	if (curproc->file_desc[0] == NULL) {
-		kprintf("\nWe make STDIN\n");
 		struct vnode* v1;
 		char c1[] = "con:";
 		curproc->file_desc[0] = kmalloc(sizeof(struct file));
@@ -79,10 +78,10 @@ static int std_init() {
 			return ENOMEM;
 		}
 		curproc->file_desc[0]->offset = 0;
+		curproc->file_desc[0]->ref = 1;
 	}
 	//STDOUT
 	if (curproc->file_desc[1] == NULL) {
-		kprintf("\nWe make STDOUT\n");
 		struct vnode* v2;
 		char c2[] = "con:";
 		curproc->file_desc[1] = kmalloc(sizeof(struct file));
@@ -102,11 +101,11 @@ static int std_init() {
 			return ENOMEM;
 		}
 		curproc->file_desc[1]->offset = 0;
+		curproc->file_desc[1]->ref = 1;
 	}
 	
 	//STDERR
 	if (curproc->file_desc[2] == NULL) {
-		kprintf("\nWe make STDERR\n");
 		struct vnode* v3;
 		char c3[] = "con:";
 		curproc->file_desc[2] = kmalloc(sizeof(struct file));
@@ -126,10 +125,11 @@ static int std_init() {
 			return ENOMEM;
 		}
 		curproc->file_desc[2]->offset = 0;
+		curproc->file_desc[2]->ref = 1;
 	}
 
 	if (overLock == NULL) {
-		overLock = lock_create("Over Lock");
+		overLock = lock_create("Over_Lock");
 		if (overLock == NULL) {
 			free_file(&curproc->file_desc[0]);
 			free_file(&curproc->file_desc[1]);

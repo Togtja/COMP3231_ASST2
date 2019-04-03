@@ -17,16 +17,7 @@ main(int argc, char * argv[])
 	int fd, r, i, j, k;
         (void) argc;
         (void) argv;
-		/*TEMP TEST*/
-		for (int i = 0; i < 200; i++) {
-			fd = open("test.file", O_RDWR | O_CREAT);
-			printf("* open() got fd %d\n", fd);
-			if (fd < 0) {
-				printf("ERROR opening file: %s\n", strerror(errno));
-				exit(1);
-			}
-		}
-
+	
 		//Test stdout and stderr
         printf("\n**********\n* File Tester\n");
 
