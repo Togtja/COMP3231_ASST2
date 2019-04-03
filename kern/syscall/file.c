@@ -35,21 +35,21 @@ int free_file(struct file** f) {
 		(*f)->ref--;
 	}
 	else {
-		
 		if ((*f)->vnode != NULL) {
 			vfs_close((*f)->vnode);
 			(*f)->vnode = NULL;
 		}
-		if ((*f)->lock != NULL) {
+		if ((*f)->lock != NULL && (*f)->lock->lk_holder != NULL) {
 			lock_destroy((*f)->lock);
 		}
-		
 		kfree(*f);
 	}
 	*f = NULL;
 	
 	return 0;
 }
+
+
 
 int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	char* saneFileName = kmalloc(sizeof(char)*__PATH_MAX);
@@ -61,7 +61,47 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	//This sanitize the user pointer to kernel space
 	*err = copyinstr(filename, saneFileName, __PATH_MAX, &len);
 	if (*err) {
-		kprintf("\n\n OOOF \n\n");
+		kfree(saneFileName);
+		return -1;//Returns -1 if failed
+	}
+	int fd;
+	for (fd = 3; fd < __OPEN_MAX; fd++) {
+		if (curproc->file_desc[fd] == NULL) {
+			break;
+		}
+	}
+	if (fd >= __OPEN_MAX) {
+		kfree(saneFileName);
+		*err = ENFILE;
+
+		return -1;
+	}
+	curproc->file_desc[fd] = kmalloc(1); //gives them a form of size
+	struct vnode* vn;
+	vfs_open(saneFileName, flag, mode, &vn);
+	testOfNodes[fd] = vn;
+	if (*err) {
+		kprintf("filename: %s\n", saneFileName);
+		kfree(saneFileName);
+		kfree(curproc->file_desc[fd]);
+		kprintf("\n\n VFS_OPEN FAILED\n\n");
+		return -1;//Returns -1 if failed
+	}
+	return fd;
+	/*
+	if (filename == NULL) {
+		*err = ENODEV;
+		return -1;
+	}
+	char* saneFileName = kmalloc(sizeof(char)*__PATH_MAX);
+	if (saneFileName == NULL) {
+		*err = ENOMEM;
+		return -1;//Returns -1 if failed
+	}
+	size_t len;
+	//This sanitize the user pointer to kernel space
+	*err = copyinstr(filename, saneFileName, __PATH_MAX, &len);
+	if (*err) {
 		kfree(saneFileName);
 		return -1;//Returns -1 if failed
 	}
@@ -71,15 +111,14 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	//Find first avalable file_desc
 	for (fd = 3; fd < __OPEN_MAX; fd++) {
 		if (curproc->file_desc[fd] == NULL) {
-			//kprintf("fd is : %d\n", fd);
 			break;
 		}
 	}
 	//If the first "avalable" is outside the amout of possible open files
-	//If the first "avalable" is outside the amout of possible open files
-	if (fd == __OPEN_MAX) {
-		*err = ENFILE;
+	if (fd >= __OPEN_MAX) {
 		kfree(saneFileName);
+		*err = ENFILE;
+		
 		return -1;
 	}
 	curproc->file_desc[fd] = kmalloc(sizeof(struct file*));
@@ -93,12 +132,11 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	if (*err) {
 		kprintf("filename: %s\n", saneFileName);
 		kfree(saneFileName);
-		free_file(&curproc->file_desc[fd]);
+		kfree(curproc->file_desc[fd]);
 		kprintf("\n\n VFS_OPEN FAILED\n\n");
 		return -1;//Returns -1 if failed
 	}
 	
-	//curproc->file_desc[fd]->fd = fd;
 	curproc->file_desc[fd]->vnode = vn;
 	curproc->file_desc[fd]->offset = 0;
 	curproc->file_desc[fd]->lock = lock_create(saneFileName);
@@ -115,7 +153,11 @@ int sys_open(userptr_t filename, int flag, mode_t mode, int * err) {
 	kfree(saneFileName);
 	//kprintf("fd is : %d\n", fd);
 	return fd;//Sucess!!!
+	*/
 }
+
+
+
 int sys_read(int fd, userptr_t buffer, size_t bufsize, int * err) {
 	if (fd < 0 || fd >= __OPEN_MAX || curproc->file_desc[fd] == NULL) {
 		*err = EBADF;
@@ -217,7 +259,7 @@ off_t sys_lseek(int fd, uint64_t pos, int whence, int * err) {
 	}
 	//The new position is current position/ofset + pos
 	else if (SEEK_CUR == whence) {
-		ret = pos;
+		ret = curproc->file_desc[fd]->offset + pos;
 	}
 	//The new position is eof + pos
 	else if (SEEK_END == whence) {

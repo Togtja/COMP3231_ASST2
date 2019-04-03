@@ -14,9 +14,19 @@ char buf[MAX_BUF];
 int
 main(int argc, char * argv[])
 {
-        int fd, r, i, j , k;
+	int fd, r, i, j, k;
         (void) argc;
         (void) argv;
+		/*TEMP TEST*/
+		for (int i = 0; i < 200; i++) {
+			fd = open("test.file", O_RDWR | O_CREAT);
+			printf("* open() got fd %d\n", fd);
+			if (fd < 0) {
+				printf("ERROR opening file: %s\n", strerror(errno));
+				exit(1);
+			}
+		}
+
 		//Test stdout and stderr
         printf("\n**********\n* File Tester\n");
 
@@ -32,6 +42,7 @@ main(int argc, char * argv[])
                 printf("ERROR opening file: %s\n", strerror(errno));
                 exit(1);
         }
+		
 		//Test of writing to open file
         printf("* writing test string\n");
         r = write(fd, teststr, strlen(teststr));
@@ -125,7 +136,7 @@ main(int argc, char * argv[])
         printf("* file lseek  okay\n");
         printf("* closing file\n");
 		close(fd);
-		int filenr = 100; //change this to test more or less files open at the same time
+		int filenr = 50; //change this to test more or less files open at the same time
 		//Test of multiple files open at once
 		printf("\nTEST OF %d OPEN AT THE SAME TIME:\n", filenr);
 		int _fd[200]; //MAX should be 128, but to test that everything works we'll over do it
@@ -159,7 +170,7 @@ main(int argc, char * argv[])
 			close(_fd[i]);
 		}
 		//Test if I can open the multiple files I created
-		printf("\nTEST OF %d RE-OPEN AND WRITE ALL INTO:\n", filenr);
+		printf("\nTEST OF %d RE-OPEN AND READ:\n", filenr);
 		for  (int w = 0; w < filenr; w++) {
 			char filename[200];
 			snprintf(filename, 200, "%d", w);

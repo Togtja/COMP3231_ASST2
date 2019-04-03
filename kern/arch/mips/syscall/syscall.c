@@ -114,21 +114,16 @@ syscall(struct trapframe *tf)
 		/* OUR ADDED STUFF */
 		case SYS_open:
 			retval = sys_open(/*Pathname*/(userptr_t)tf->tf_a0,/*flags*/(int)tf->tf_a1,/*mode*/(mode_t)tf->tf_a2, &err);
-			//kprintf("We did a open %d\n", callno);
-			//kprintf("fd is : %d\n", retval);
 			break;
 		case SYS_read:
 			retval = sys_read(/*Filehandle*/(int)tf->tf_a0, /*buffer*/(userptr_t)tf->tf_a1,/*buffer length*/(size_t)tf->tf_a2, &err);
-			//kprintf("We did a read %d\n", callno);
 			break;
 		case SYS_write: 
 			retval = sys_write(/*filehandle*/(int)tf->tf_a0,/*buffer*/(userptr_t)tf->tf_a1,/*bytesize*/(size_t)tf->tf_a2, &err);
-			//kprintf("We did a write %d\n", callno);
 			break;
 		//Special case
 		case SYS_lseek: 
 			;//Empty statment (must keep)
-			kprintf("We did a lseek %d\n", callno);
 			uint64_t offset;
 			int whence = 0;
 			//Take arg a2 and a3 into pos
@@ -163,6 +158,9 @@ syscall(struct trapframe *tf)
 		 * userlevel to a return value of -1 and the error
 		 * code in errno.
 		 */
+		;;
+		kprintf("The error Nr is %d\n", err);
+		;;
 		tf->tf_v0 = err;
 		tf->tf_a3 = 1;      /* signal an error */
 	}

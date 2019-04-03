@@ -59,6 +59,7 @@ static int std_init() {
 	int result;
 	//STDIN
 	if (curproc->file_desc[0] == NULL) {
+		kprintf("\nWe make STDIN\n");
 		struct vnode* v1;
 		char c1[] = "con:";
 		curproc->file_desc[0] = kmalloc(sizeof(struct file));
@@ -68,7 +69,6 @@ static int std_init() {
 		result = vfs_open(c1, O_RDONLY, 0644, &v1);
 		if (result) {
 			free_file(&curproc->file_desc[0]);
-			vfs_close(v1);
 			return result;
 		}
 		curproc->file_desc[0]->vnode = v1;
@@ -76,13 +76,13 @@ static int std_init() {
 		curproc->file_desc[0]->lock = lock_create("stdin");
 		if (curproc->file_desc[0]->lock == NULL) {
 			free_file(&curproc->file_desc[0]);
-			vfs_close(v1);
 			return ENOMEM;
 		}
 		curproc->file_desc[0]->offset = 0;
 	}
 	//STDOUT
 	if (curproc->file_desc[1] == NULL) {
+		kprintf("\nWe make STDOUT\n");
 		struct vnode* v2;
 		char c2[] = "con:";
 		curproc->file_desc[1] = kmalloc(sizeof(struct file));
@@ -92,7 +92,6 @@ static int std_init() {
 		result = vfs_open(c2, O_WRONLY, 0644, &v2);
 		if (result) {
 			free_file(&curproc->file_desc[1]);
-			vfs_close(v2);
 			return result;
 		}
 		curproc->file_desc[1]->vnode = v2;
@@ -100,13 +99,14 @@ static int std_init() {
 		curproc->file_desc[1]->lock = lock_create("stdout");
 		if (curproc->file_desc[1]->lock == NULL) {
 			free_file(&curproc->file_desc[1]);
-			vfs_close(v2);
 			return ENOMEM;
 		}
+		curproc->file_desc[1]->offset = 0;
 	}
-	curproc->file_desc[1]->offset = 0;
+	
 	//STDERR
 	if (curproc->file_desc[2] == NULL) {
+		kprintf("\nWe make STDERR\n");
 		struct vnode* v3;
 		char c3[] = "con:";
 		curproc->file_desc[2] = kmalloc(sizeof(struct file));
@@ -116,7 +116,6 @@ static int std_init() {
 		result = vfs_open(c3, O_WRONLY, 0644, &v3);
 		if (result) {
 			free_file(&curproc->file_desc[2]);
-			vfs_close(v3);
 			return result;
 		}
 		curproc->file_desc[2]->vnode = v3;
@@ -124,7 +123,6 @@ static int std_init() {
 		curproc->file_desc[2]->lock = lock_create("stderr");
 		if (curproc->file_desc[2]->lock == NULL) {
 			free_file(&curproc->file_desc[2]);
-			vfs_close(v3);
 			return ENOMEM;
 		}
 		curproc->file_desc[2]->offset = 0;
@@ -132,11 +130,25 @@ static int std_init() {
 
 	if (overLock == NULL) {
 		overLock = lock_create("Over Lock");
+		if (overLock == NULL) {
+			free_file(&curproc->file_desc[0]);
+			free_file(&curproc->file_desc[1]);
+			free_file(&curproc->file_desc[2]);
+			return ENOMEM;
+		}
 	}
-	
 	return 0;
 }
-
+/*static int std_close() {
+	int err;
+	err = free_file(&curproc->file_desc[0]);
+	if (err) { return err; }
+	err = free_file(&curproc->file_desc[1]);
+	if (err) { return err; }
+	err =free_file(&curproc->file_desc[2]);
+	if (err) { return err; }
+	return 0;
+}*/
 int
 runprogram(char *progname)
 {
@@ -185,6 +197,7 @@ runprogram(char *progname)
 	/* Done with the file now. */
 	vfs_close(v);
 
+
 	/* Define the user stack in the address space */
 	result = as_define_stack(as, &stackptr);
 	if (result) {
@@ -200,6 +213,7 @@ runprogram(char *progname)
 
 	/* enter_new_process does not return. */
 	panic("enter_new_process returned\n");
+	//std_close();
 	return EINVAL;
 }
 
