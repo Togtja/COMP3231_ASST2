@@ -127,15 +127,15 @@ main(int argc, char * argv[])
         printf("* file lseek  okay\n");
         printf("* closing file\n");
 		close(fd);
-		int filenr = 50; //change this to test more or less files open at the same time
+		int filenr = 60; //change this to test more or less files open at the same time
 		//Test of multiple files open at once
 		printf("\nTEST OF %d OPEN AT THE SAME TIME:\n", filenr);
 		int _fd[200]; //MAX should be 128, but to test that everything works we'll over do it
 		for (i = 0; i < filenr; i++) {
-			//printf("**********\n* opening new file \"test.file\"\n");
 			char filename[200];
 			snprintf(filename, 200, "%d", i);
 			strcat(filename, "test.file");
+			printf("**********\n* opening new file \"%s\"\n",filename);
 			_fd[i] = open(filename, O_RDWR | O_CREAT);
 			printf("* open() got fd %d\n", _fd[i]);
 			if (_fd[i] < 0) {
